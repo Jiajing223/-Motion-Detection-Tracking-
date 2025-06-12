@@ -119,15 +119,18 @@ def background_subtractor_class(video_path, window_name):
     cv.resizeWindow(window_name, 800, 600)
     cap = cv.VideoCapture(video_path)
     
-    subtractor = cv.createBackgroundSubtractorMOG2()
-
+    #subtractor1 = cv.createBackgroundSubtractorMOG2()
+    subtractor2 = cv.createBackgroundSubtractorKNN()
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-
-        fg_mask = subtractor.apply(frame)
-        cv.putText(fg_mask, "Algorithm: MOG2", (10, 30),
+        
+        #fg_mask = subtractor1.apply(frame)
+        fg_mask = subtractor2.apply(frame)
+        #cv.putText(fg_mask, "Algorithm: MOG2(Can be changed in the code)", (10, 30),
+        #           cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv.putText(fg_mask, "Algorithm: KNN(Can be changed in the code)", (10, 30),
                    cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
@@ -138,29 +141,53 @@ def background_subtractor_class(video_path, window_name):
         key = cv.waitKey(30) & 0xFF
         if key == ord('q'):
             break
-
+    
+    
     cap.release()
     cv.destroyWindow(window_name)
 
 
 def meanshift_camshift(video_path, window_name):
-    """Simple video display for now - will implement tracking later"""
-    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
-    cv.resizeWindow(window_name, 800, 600)
+    
     cap = cv.VideoCapture(video_path)
-    if not cap.isOpened():
-        messagebox.showerror("Error", f"Could not open video:\n{video_path}")
-        return
 
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to read video")
+        cap.release()
+        exit()
+
+    r = cv.selectROI("Select Object", frame, fromCenter=False, showCrosshair=True)
+    cv.destroyWindow("Select Object")
+    x, y, w, h = r
+    track_window = (x, y, w, h)
+
+
+    roi = frame[y:y+h, x:x+w]
+    hsv_roi = cv.cvtColor(roi, cv.COLOR_BGR2HSV)
+    mask = cv.inRange(hsv_roi, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
+
+    roi_hist = cv.calcHist([hsv_roi], [0], mask, [180], [0, 180])
+    cv.normalize(roi_hist, roi_hist, 0, 255, cv.NORM_MINMAX)
+
+    # Setup the termination criteria: 10 iterations or move by at least 1 pt
+    term_crit = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 1)
+
+    
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
-            break
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        dst = cv.calcBackProject([hsv], [0], roi_hist, [0, 180], 1)
 
-        cv.imshow(window_name, frame)
+        ret, track_window = cv.meanShift(dst, track_window, term_crit)
+
+        x, y, w, h = track_window
+        result = cv.rectangle(frame, (x, y), (x+w, y+h), 255, 2)
+
+        cv.imshow('MeanShift Tracking', result)
 
         key = cv.waitKey(30) & 0xFF
         if key == ord('q'):
