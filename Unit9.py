@@ -42,8 +42,7 @@ def open_video_prompt(option_name, processing_func):
         return
 
     window_name = f"{option_name} - Press Q to quit"
-    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
-    cv.resizeWindow(window_name, 800, 600)
+    
 
     def process_video():
         processing_func(video_path, window_name)
@@ -77,6 +76,9 @@ def open_image_prompt(option_name, processing_func=None):
 # ============== PROCESSING FUNCTIONS ==============
 
 def background_subtractor_simple(video_path, window_name):
+    
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
     cap = cv.VideoCapture(video_path)
     if not cap.isOpened():
         messagebox.showerror("Error", f"Could not open video:\n{video_path}")
@@ -104,31 +106,28 @@ def background_subtractor_simple(video_path, window_name):
         cv.imshow(window_name, thresh)
         prev_gray = gray
 
-        if cv.waitKey(30) & 0xFF == ord('q'):
+        key = cv.waitKey(30) & 0xFF
+        if key == ord('q'):
             break
 
     cap.release()
-    cv.destroyAllWindows()
+    cv.destroyWindow(window_name)
 
 
 def background_subtractor_class(video_path, window_name):
-    cap = cv.VideoCapture(0)
-    subtractors = {
-        "MOG2": cv.createBackgroundSubtractorMOG2(),
-        "KNN": cv.createBackgroundSubtractorKNN(),
-        "GMG": cv.createBackgroundSubtractorGMG()
-    }
-
-    print("Press: 1-MOG2, 2-KNN, 3-GMG, q-Quit")
-    current = "MOG2"
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    cap = cv.VideoCapture(video_path)
+    
+    subtractor = cv.createBackgroundSubtractorMOG2()
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        fg_mask = subtractors[current].apply(frame)
-        cv.putText(fg_mask, f"Algorithm: {current}", (10, 30),
+        fg_mask = subtractor.apply(frame)
+        cv.putText(fg_mask, "Algorithm: MOG2", (10, 30),
                    cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
@@ -136,37 +135,66 @@ def background_subtractor_class(video_path, window_name):
 
         cv.imshow(window_name, fg_mask)
 
-        key = cv.waitKey(1) & 0xFF
+        key = cv.waitKey(30) & 0xFF
         if key == ord('q'):
             break
-        elif key == ord('1'):
-            current = "MOG2"
-        elif key == ord('2'):
-            current = "KNN"
-        elif key == ord('3'):
-            current = "GMG"
 
     cap.release()
-    cv.destroyAllWindows()
+    cv.destroyWindow(window_name)
 
 
 def meanshift_camshift(video_path, window_name):
-    """Implement MeanShift and CAMShift tracking algorithms"""
-    pass
+    """Simple video display for now - will implement tracking later"""
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    cap = cv.VideoCapture(video_path)
+    if not cap.isOpened():
+        messagebox.showerror("Error", f"Could not open video:\n{video_path}")
+        return
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
+            break
+
+        cv.imshow(window_name, frame)
+
+        key = cv.waitKey(30) & 0xFF
+        if key == ord('q'):
+            break
+
+    cap.release()
+    cv.destroyWindow(window_name)
 
 
 def corner_detection(image_path):
     """Implement Harris Corner Detector and Good Features to Track"""
+    
     pass
 
 
 def lucas_kanade_flow(video_path, window_name):
     """Implement Lucas-Kanade optical flow"""
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    cap = cv.VideoCapture(video_path)
+
+
+    cv.destroyWindow(window_name)
     pass
 
 
 def farneback_flow(video_path, window_name):
     """Implement Farneback dense optical flow"""
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    cap = cv.VideoCapture(video_path)
+
+
+    cv.destroyWindow(window_name)
     pass
 
 
