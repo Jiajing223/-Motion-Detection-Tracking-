@@ -1,4 +1,3 @@
-
 from tkinter import messagebox, filedialog
 import cv2 as cv
 import numpy as np
@@ -13,6 +12,7 @@ def center_window(window, width=400, height=150):
     y = int((screen_height / 2) - (height / 2))
     window.geometry(f"{width}x{height}+{x}+{y}")
 
+
 def get_video_path():
     root = tk.Tk()
     root.withdraw()
@@ -22,6 +22,7 @@ def get_video_path():
     )
     root.destroy()
     return file_path
+
 
 def get_image_path():
     root = tk.Tk()
@@ -33,15 +34,6 @@ def get_image_path():
     root.destroy()
     return file_path
 
-def create_control_bar(window_name):
-    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
-    cv.resizeWindow(window_name, 800, 600)
-    
-    control_bar = np.zeros((50, 800, 3), dtype=np.uint8)
-    cv.rectangle(control_bar, (700, 10), (790, 40), (0, 0, 255), -1)
-    cv.putText(control_bar, "STOP", (710, 30), 
-               cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-    return control_bar
 
 def open_video_prompt(option_name, processing_func):
     video_path = get_video_path()
@@ -50,32 +42,22 @@ def open_video_prompt(option_name, processing_func):
         return
 
     window_name = f"{option_name} - Press Q to quit"
-    control_bar = create_control_bar(window_name)
     cv.namedWindow(window_name, cv.WINDOW_NORMAL)
     cv.resizeWindow(window_name, 800, 600)
 
-    stop_flag = False
-    
-    def mouse_callback(event, x, y, flags, param):
-        nonlocal stop_flag
-        if event == cv.EVENT_LBUTTONDOWN:
-            if 700 <= x <= 790 and 10 <= y <= 40:
-                stop_flag = True
-    
-    cv.setMouseCallback(window_name, mouse_callback)
-    
     def process_video():
-        processing_func(video_path, stop_flag, window_name, control_bar)
+        processing_func(video_path, window_name)
         cv.destroyAllWindows()
-    
+
     threading.Thread(target=process_video).start()
+
 
 def open_image_prompt(option_name, processing_func=None):
     image_path = get_image_path()
     if not image_path:
         messagebox.showerror("Error", "No image file selected")
         return
-    
+
     if processing_func:
         processing_func(image_path)
     else:
@@ -83,7 +65,7 @@ def open_image_prompt(option_name, processing_func=None):
         if img is None:
             messagebox.showerror("Error", f"Could not load image at:\n{image_path}")
             return
-        
+
         window_name = f"{option_name} - Press any key to close"
         cv.namedWindow(window_name, cv.WINDOW_NORMAL)
         cv.resizeWindow(window_name, 800, 600)
@@ -91,61 +73,69 @@ def open_image_prompt(option_name, processing_func=None):
         cv.waitKey(0)
         cv.destroyAllWindows()
 
-# ============== EMPTY PROCESSING FUNCTIONS ==============
 
-def background_subtractor_simple(video_path, stop_flag, window_name, control_bar):
+# ============== PROCESSING FUNCTIONS ==============
+
+def background_subtractor_simple(video_path, window_name):
     cap = cv.VideoCapture(video_path)
     if not cap.isOpened():
         messagebox.showerror("Error", f"Could not open video:\n{video_path}")
         return
-    
+
     ret, prev_frame = cap.read()
     if not ret:
         messagebox.showerror("Error", "Could not read first frame")
         return
-        
+
     prev_gray = cv.cvtColor(prev_frame, cv.COLOR_BGR2GRAY)
-    
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-            
+
         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         diff = cv.absdiff(prev_gray, gray)
         _, thresh = cv.threshold(diff, 30, 255, cv.THRESH_BINARY)
-        
-        cv.imshow('Simple Background Subtraction', thresh)
+
+        if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
+            break
+
+        cv.imshow(window_name, thresh)
         prev_gray = gray
-        
+
         if cv.waitKey(30) & 0xFF == ord('q'):
             break
-            
+
     cap.release()
     cv.destroyAllWindows()
 
-def background_subtractor_class(video_path, stop_flag, window_name, control_bar):
+
+def background_subtractor_class(video_path, window_name):
     cap = cv.VideoCapture(0)
     subtractors = {
         "MOG2": cv.createBackgroundSubtractorMOG2(),
         "KNN": cv.createBackgroundSubtractorKNN(),
         "GMG": cv.createBackgroundSubtractorGMG()
     }
-    
+
     print("Press: 1-MOG2, 2-KNN, 3-GMG, q-Quit")
     current = "MOG2"
-    
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-            
+
         fg_mask = subtractors[current].apply(frame)
-        c2.putText(fg_mask, f"Algorithm: {current}", (10, 30), 
+        cv.putText(fg_mask, f"Algorithm: {current}", (10, 30),
                    cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        
-        cv.imshow('Background Subtractor Class', fg_mask)
-        
+
+        if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
+            break
+
+        cv.imshow(window_name, fg_mask)
+
         key = cv.waitKey(1) & 0xFF
         if key == ord('q'):
             break
@@ -155,25 +145,30 @@ def background_subtractor_class(video_path, stop_flag, window_name, control_bar)
             current = "KNN"
         elif key == ord('3'):
             current = "GMG"
-            
+
     cap.release()
     cv.destroyAllWindows()
 
-def meanshift_camshift(video_path, stop_flag, window_name, control_bar):
+
+def meanshift_camshift(video_path, window_name):
     """Implement MeanShift and CAMShift tracking algorithms"""
     pass
+
 
 def corner_detection(image_path):
     """Implement Harris Corner Detector and Good Features to Track"""
     pass
 
-def lucas_kanade_flow(video_path, stop_flag, window_name, control_bar):
+
+def lucas_kanade_flow(video_path, window_name):
     """Implement Lucas-Kanade optical flow"""
     pass
 
-def farneback_flow(video_path, stop_flag, window_name, control_bar):
+
+def farneback_flow(video_path, window_name):
     """Implement Farneback dense optical flow"""
     pass
+
 
 # ================== MAIN APPLICATION ==================
 
@@ -200,6 +195,6 @@ functions = [
 
 for i, (title, command) in enumerate(functions):
     btn = tk.Button(main_frame, text=title, command=command, height=2)
-    btn.grid(row=i//3, column=i%3, padx=10, pady=10, sticky="nsew")
+    btn.grid(row=i // 3, column=i % 3, padx=10, pady=10, sticky="nsew")
 
 root.mainloop()
