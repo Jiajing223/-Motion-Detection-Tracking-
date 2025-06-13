@@ -114,23 +114,19 @@ def background_subtractor_simple(video_path, window_name):
     cv.destroyWindow(window_name)
 
 
-def background_subtractor_class(video_path, window_name):
+def background_subtractor_knn(video_path, window_name):
     cv.namedWindow(window_name, cv.WINDOW_NORMAL)
     cv.resizeWindow(window_name, 800, 600)
     cap = cv.VideoCapture(video_path)
     
-    #subtractor1 = cv.createBackgroundSubtractorMOG2()
-    subtractor2 = cv.createBackgroundSubtractorKNN()
+    subtractor = cv.createBackgroundSubtractorKNN()
     while True:
         ret, frame = cap.read()
         if not ret:
             break
         
-        #fg_mask = subtractor1.apply(frame)
-        fg_mask = subtractor2.apply(frame)
-        #cv.putText(fg_mask, "Algorithm: MOG2(Can be changed in the code)", (10, 30),
-        #           cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        cv.putText(fg_mask, "Algorithm: KNN(Can be changed in the code)", (10, 30),
+        fg_mask = subtractor.apply(frame)
+        cv.putText(fg_mask, "Algorithm: KNN", (10, 30),
                    cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
@@ -142,26 +138,50 @@ def background_subtractor_class(video_path, window_name):
         if key == ord('q'):
             break
     
+    cap.release()
+    cv.destroyWindow(window_name)
+
+def background_subtractor_mog2(video_path, window_name):
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    cap = cv.VideoCapture(video_path)
+    
+    subtractor = cv.createBackgroundSubtractorMOG2()
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        fg_mask = subtractor.apply(frame)
+        cv.putText(fg_mask, "Algorithm: MOG2", (10, 30),
+                   cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+        if cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
+            break
+
+        cv.imshow(window_name, fg_mask)
+
+        key = cv.waitKey(30) & 0xFF
+        if key == ord('q'):
+            break
     
     cap.release()
     cv.destroyWindow(window_name)
 
 
-def meanshift_camshift(video_path, window_name):
-    
+def meanshift_tracking(video_path, window_name):
     cap = cv.VideoCapture(video_path)
 
     ret, frame = cap.read()
     if not ret:
         print("Failed to read video")
         cap.release()
-        exit()
+        return
 
-    r = cv.selectROI("Select Object", frame, fromCenter=False, showCrosshair=True)
-    cv.destroyWindow("Select Object")
+    r = cv.selectROI("Select Object for MeanShift", frame, fromCenter=False, showCrosshair=True)
+    cv.destroyWindow("Select Object for MeanShift")
     x, y, w, h = r
     track_window = (x, y, w, h)
-
 
     roi = frame[y:y+h, x:x+w]
     hsv_roi = cv.cvtColor(roi, cv.COLOR_BGR2HSV)
@@ -170,9 +190,10 @@ def meanshift_camshift(video_path, window_name):
     roi_hist = cv.calcHist([hsv_roi], [0], mask, [180], [0, 180])
     cv.normalize(roi_hist, roi_hist, 0, 255, cv.NORM_MINMAX)
 
-    # Setup the termination criteria: 10 iterations or move by at least 1 pt
     term_crit = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 1)
-
+    
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
     
     while True:
         ret, frame = cap.read()
@@ -185,12 +206,70 @@ def meanshift_camshift(video_path, window_name):
         ret, track_window = cv.meanShift(dst, track_window, term_crit)
 
         x, y, w, h = track_window
-        result = cv.rectangle(frame, (x, y), (x+w, y+h), 255, 2)
+        result = cv.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        
+        cv.putText(result, "Algorithm: MeanShift", (10, 30),
+                   cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        cv.imshow('MeanShift Tracking', result)
+        cv.imshow(window_name, result)
 
         key = cv.waitKey(30) & 0xFF
-        if key == ord('q'):
+        if key == ord('q') or cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
+            break
+
+    cap.release()
+    cv.destroyWindow(window_name)
+
+
+def camshift_tracking(video_path, window_name):
+    cap = cv.VideoCapture(video_path)
+
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to read video")
+        cap.release()
+        return
+
+    r = cv.selectROI("Select Object for CAMShift", frame, fromCenter=False, showCrosshair=True)
+    cv.destroyWindow("Select Object for CAMShift")
+    x, y, w, h = r
+    track_window = (x, y, w, h)
+
+    roi = frame[y:y+h, x:x+w]
+    hsv_roi = cv.cvtColor(roi, cv.COLOR_BGR2HSV)
+    mask = cv.inRange(hsv_roi, np.array((0., 60., 32.)), np.array((180., 255., 255.)))
+
+    roi_hist = cv.calcHist([hsv_roi], [0], mask, [180], [0, 180])
+    cv.normalize(roi_hist, roi_hist, 0, 255, cv.NORM_MINMAX)
+
+    term_crit = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 1)
+    
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        dst = cv.calcBackProject([hsv], [0], roi_hist, [0, 180], 1)
+
+        # Apply CAMShift to get the rotated rectangle
+        ret, track_window = cv.CamShift(dst, track_window, term_crit)
+        
+        # Draw rotated rectangle
+        pts = cv.boxPoints(ret)
+        pts = np.int0(pts)
+        result = cv.polylines(frame, [pts], True, (0, 255, 0), 2)
+        
+        cv.putText(result, "Algorithm: CAMShift", (10, 30),
+                   cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        cv.imshow(window_name, result)
+
+        key = cv.waitKey(30) & 0xFF
+        if key == ord('q') or cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
             break
 
     cap.release()
@@ -234,22 +313,29 @@ root.geometry("800x600")
 main_frame = tk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
+# Configure grid for 3 columns and 3 rows
 for i in range(3):
     main_frame.columnconfigure(i, weight=1)
-for i in range(2):
+for i in range(3):
     main_frame.rowconfigure(i, weight=1)
 
+# Updated functions list with separate buttons for MeanShift and CAMShift
 functions = [
     ("1. Background Subtraction", lambda: open_video_prompt("Background Subtraction", background_subtractor_simple)),
-    ("2. BackgroundSubtractor Class", lambda: open_video_prompt("BackgroundSubtractor", background_subtractor_class)),
-    ("3. MeanShift/CAMShift", lambda: open_video_prompt("Tracking", meanshift_camshift)),
-    ("4. Corner Detection", lambda: open_image_prompt("Corner Detection", corner_detection)),
-    ("5. Lucas-Kanade Flow", lambda: open_video_prompt("Lucas-Kanade", lucas_kanade_flow)),
-    ("6. Farneback Flow", lambda: open_video_prompt("Farneback", farneback_flow)),
+    ("2. BackgroundSubtractor (KNN)", lambda: open_video_prompt("BackgroundSubtractor (KNN)", background_subtractor_knn)),
+    ("3. BackgroundSubtractor (MOG2)", lambda: open_video_prompt("BackgroundSubtractor (MOG2)", background_subtractor_mog2)),
+    ("4. MeanShift Tracking", lambda: open_video_prompt("MeanShift Tracking", meanshift_tracking)),
+    ("5. CAMShift Tracking", lambda: open_video_prompt("CAMShift Tracking", camshift_tracking)),
+    ("6. Corner Detection", lambda: open_image_prompt("Corner Detection", corner_detection)),
+    ("7. Lucas-Kanade Flow", lambda: open_video_prompt("Lucas-Kanade", lucas_kanade_flow)),
+    ("8. Farneback Flow", lambda: open_video_prompt("Farneback", farneback_flow)),
 ]
 
+# Create buttons in a 3x3 grid
 for i, (title, command) in enumerate(functions):
     btn = tk.Button(main_frame, text=title, command=command, height=2)
-    btn.grid(row=i // 3, column=i % 3, padx=10, pady=10, sticky="nsew")
+    row = i // 3
+    col = i % 3
+    btn.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
 
 root.mainloop()
