@@ -263,7 +263,7 @@ def camshift_tracking(video_path, window_name):
         
         # Draw rotated rectangle
         pts = cv.boxPoints(ret)
-        pts = np.int0(pts)
+        pts = np.int32(pts)
         result = cv.polylines(frame, [pts], True, (0, 255, 0), 2)
         
         cv.putText(result, "Algorithm: CAMShift", (10, 30),
