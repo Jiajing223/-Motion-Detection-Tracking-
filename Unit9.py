@@ -4,6 +4,7 @@ import numpy as np
 import tkinter as tk
 import threading
 
+# ================= INTERFACE UI FUNCTIONS ==========================
 
 def center_window(window, width=400, height=150):
     screen_width = window.winfo_screenwidth()
@@ -276,10 +277,39 @@ def camshift_tracking(video_path, window_name):
     cv.destroyWindow(window_name)
 
 
-def corner_detection(image_path):
-    """Implement Harris Corner Detector and Good Features to Track"""
-    
-    pass
+def harris_corner_detection(image_path):
+    img = cv.imread(image_path)
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    gray = np.float32(gray)
+
+    dst = cv.cornerHarris(gray, blockSize=2, ksize=3, k=0.04)
+    dst = cv.dilate(dst, None)
+    img[dst > 0.01 * dst.max()] = [0, 0, 255]  
+
+    window_name = "Harris Corner Detection"
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    cv.imshow(window_name, img)
+    cv.waitKey(0)
+    cv.destroyWindow(window_name)
+
+def good_features_corner_detection(image_path):
+    img = cv.imread(image_path)
+
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    corners = cv.goodFeaturesToTrack(gray, maxCorners=100, qualityLevel=0.01, minDistance=10)
+    if corners is not None:
+        corners = np.int0(corners)
+        for i in corners:
+            x, y = i.ravel()
+            cv.circle(img, (x, y), 5, (0, 255, 0), -1)  
+
+    window_name = "Good Features to Track"
+    cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+    cv.resizeWindow(window_name, 800, 600)
+    cv.imshow(window_name, img)
+    cv.waitKey(0)
+    cv.destroyWindow(window_name)
 
 
 def lucas_kanade_flow(video_path, window_name):
@@ -314,19 +344,20 @@ main_frame = tk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
 # Configure grid for 3 columns and 3 rows
-for i in range(3):
+for i in range(4):
     main_frame.columnconfigure(i, weight=1)
-for i in range(3):
+for i in range(4):
     main_frame.rowconfigure(i, weight=1)
 
 # Updated functions list with separate buttons for MeanShift and CAMShift
 functions = [
     ("1. Background Subtraction", lambda: open_video_prompt("Background Subtraction", background_subtractor_simple)),
-    ("2. BackgroundSubtractor (KNN)", lambda: open_video_prompt("BackgroundSubtractor (KNN)", background_subtractor_knn)),
-    ("3. BackgroundSubtractor (MOG2)", lambda: open_video_prompt("BackgroundSubtractor (MOG2)", background_subtractor_mog2)),
-    ("4. MeanShift Tracking", lambda: open_video_prompt("MeanShift Tracking", meanshift_tracking)),
-    ("5. CAMShift Tracking", lambda: open_video_prompt("CAMShift Tracking", camshift_tracking)),
-    ("6. Corner Detection", lambda: open_image_prompt("Corner Detection", corner_detection)),
+    ("2. BackgroundSubtractor(KNN)", lambda: open_video_prompt("BackgroundSubtractor (KNN)", background_subtractor_knn)),
+    ("2. BackgroundSubtractor(MOG2)", lambda: open_video_prompt("BackgroundSubtractor (MOG2)", background_subtractor_mog2)),
+    ("3. MeanShift Tracking", lambda: open_video_prompt("MeanShift Tracking", meanshift_tracking)),
+    ("3. CAMShift Tracking", lambda: open_video_prompt("CAMShift Tracking", camshift_tracking)),
+    ("4. Harris Corner Detector", lambda: open_image_prompt("Corner Detection", harris_corner_detection)),
+    ("4. Good Features to Track", lambda: open_image_prompt("Corner Detection", good_features_corner_detection)),
     ("7. Lucas-Kanade Flow", lambda: open_video_prompt("Lucas-Kanade", lucas_kanade_flow)),
     ("8. Farneback Flow", lambda: open_video_prompt("Farneback", farneback_flow)),
 ]
@@ -334,8 +365,8 @@ functions = [
 # Create buttons in a 3x3 grid
 for i, (title, command) in enumerate(functions):
     btn = tk.Button(main_frame, text=title, command=command, height=2)
-    row = i // 3
-    col = i % 3
+    row = i // 4
+    col = i % 4
     btn.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
 
 root.mainloop()
