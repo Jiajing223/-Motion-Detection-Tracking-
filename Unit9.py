@@ -58,8 +58,10 @@ def open_image_prompt(option_name, processing_func=None):
         messagebox.showerror("Error", "No image file selected")
         return
 
+    window_name = f"{option_name} - Press Q to quit"
+
     if processing_func:
-        processing_func(image_path)
+        processing_func(image_path, window_name)
     else:
         img = cv.imread(image_path)
         if img is None:
@@ -277,11 +279,12 @@ def camshift_tracking(video_path, window_name):
     cv.destroyWindow(window_name)
 
 
-def harris_corner_detection(image_path):
+def harris_corner_detection(image_path, window_name):
     img = cv.imread(image_path)
+    
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     gray = np.float32(gray)
-
+    
     dst = cv.cornerHarris(gray, blockSize=2, ksize=3, k=0.04)
     dst = cv.dilate(dst, None)
     img[dst > 0.01 * dst.max()] = [0, 0, 255]  
@@ -293,16 +296,17 @@ def harris_corner_detection(image_path):
     cv.waitKey(0)
     cv.destroyWindow(window_name)
 
-def good_features_corner_detection(image_path):
+def good_features_corner_detection(image_path, window_name):
     img = cv.imread(image_path)
 
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    corners = cv.goodFeaturesToTrack(gray, maxCorners=100, qualityLevel=0.01, minDistance=10)
-    if corners is not None:
-        corners = np.int0(corners)
-        for i in corners:
-            x, y = i.ravel()
-            cv.circle(img, (x, y), 5, (0, 255, 0), -1)  
+    corners = cv.goodFeaturesToTrack(gray, maxCorners=1000, qualityLevel=0.10, minDistance=100)
+
+
+    corners = np.int8(corners)
+    for i in corners:
+        x, y = i.ravel()
+        cv.circle(img, (x, y), 5, (0, 255, 0), -1)  
 
     window_name = "Good Features to Track"
     cv.namedWindow(window_name, cv.WINDOW_NORMAL)
